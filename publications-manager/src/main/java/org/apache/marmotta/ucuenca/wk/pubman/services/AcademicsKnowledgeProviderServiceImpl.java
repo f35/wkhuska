@@ -130,10 +130,11 @@ public class AcademicsKnowledgeProviderServiceImpl implements AcademicsKnowledge
 
                     //Ask if already search query is in triple Store .
                     if (!sparqlService.ask(QueryLanguage.SPARQL, queriesService.getAskResourceQuery(providerGraph, URL_TO_FIND_AK1))
-                            && !sparqlService.ask(QueryLanguage.SPARQL, queriesService.getAskResourceQuery(providerGraph, URL_TO_FIND_AK2))) {
+                            && !sparqlService.ask(QueryLanguage.SPARQL, queriesService.getAskResourceQuery(providerGraph, URL_TO_FIND_AK2))
+                            && !sparqlService.ask(QueryLanguage.SPARQL, queriesService.getAskResourceQuery(providerGraph, authorResource))) {
 
                         try {
-                            response = ldClient.retrieveResource(URL_TO_FIND_AK1.replace("keysubscriptions",keysubscriptions));
+                            response = ldClient.retrieveResource(URL_TO_FIND_AK1.replace("keysubscriptions", keysubscriptions));
                             if (!response.getData().isEmpty()) {
                                 //load retrieve triples in Sesame repository to make some searchs.
                                 conUri = ModelCommons.asRepository(response.getData()).getConnection();
@@ -159,7 +160,7 @@ public class AcademicsKnowledgeProviderServiceImpl implements AcademicsKnowledge
                         // Search author by other fields, like afiliation name, country or repository url
                         if (!dataretrievee) {
                             try {
-                                response = ldClient.retrieveResource(URL_TO_FIND_AK2.replace("keysubscriptions",keysubscriptions));
+                                response = ldClient.retrieveResource(URL_TO_FIND_AK2.replace("keysubscriptions", keysubscriptions));
                                 if (!response.getData().isEmpty()) {
                                     //load retrieve triples in Sesame repository to make some searchs.
                                     conUri = ModelCommons.asRepository(response.getData()).getConnection();
