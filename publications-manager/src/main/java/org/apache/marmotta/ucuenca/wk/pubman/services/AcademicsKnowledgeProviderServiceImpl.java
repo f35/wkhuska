@@ -121,8 +121,8 @@ public class AcademicsKnowledgeProviderServiceImpl implements AcademicsKnowledge
                 try {
                     nameToFind = stripAccents(nick == null ? priorityFindQueryBuilding(firstName, lastName) : nick.toLowerCase().replace(" ", "%20"));
                     proceced++;
-                    String URL_TO_FIND_AK1 = "https://api.projectoxford.ai/academic/v1.0/evaluate?expr=And(Composite(AA.AuN==%27" + nameToFind + "%27),Composite(AA.AfN==%27" + nameOfSource.replace(" ", "%20") + "%27))&attributes=Id,Ti,Y,D,CC,ECC,AA.AuN,AA.AuId,AA.AfN,AA.AfId,F.FN,F.FId,J.JN,J.JId,C.CN,C.CId,RId,W,E,D&E=DN,D,S,S.Ty,S.U,VFN,VSN,V,I,FP,LP,DOI&subscription-key=" + keysubscriptions + "&count=100&sort=2";
-                    String URL_TO_FIND_AK2 = "https://api.projectoxford.ai/academic/v1.0/evaluate?expr=Composite(AA.AuN==%27" + nameToFind + "%27)&attributes=Id,Ti,Y,D,CC,ECC,AA.AuN,AA.AuId,AA.AfN,AA.AfId,F.FN,F.FId,J.JN,J.JId,C.CN,C.CId,RId,W,E,D&E=DN,D,S,S.Ty,S.U,VFN,VSN,V,I,FP,LP,DOI&subscription-key=" + keysubscriptions + "&count=100&sort=2";
+                    String URL_TO_FIND_AK1 = "https://api.projectoxford.ai/academic/v1.0/evaluate?expr=And(Composite(AA.AuN==%27" + nameToFind + "%27),Composite(AA.AfN==%27" + nameOfSource.replace(" ", "%20") + "%27))&attributes=Id,Ti,Y,D,CC,ECC,AA.AuN,AA.AuId,AA.AfN,AA.AfId,F.FN,F.FId,J.JN,J.JId,C.CN,C.CId,RId,W,E,D&E=DN,D,S,S.Ty,S.U,VFN,VSN,V,I,FP,LP,DOI&subscription-key=keysubscriptions&count=100&sort=2";
+                    String URL_TO_FIND_AK2 = "https://api.projectoxford.ai/academic/v1.0/evaluate?expr=Composite(AA.AuN==%27" + nameToFind + "%27)&attributes=Id,Ti,Y,D,CC,ECC,AA.AuN,AA.AuId,AA.AfN,AA.AfId,F.FN,F.FId,J.JN,J.JId,C.CN,C.CId,RId,W,E,D&E=DN,D,S,S.Ty,S.U,VFN,VSN,V,I,FP,LP,DOI&subscription-key=keysubscriptions&count=100&sort=2";
                     boolean dataretrievee = false;
 
                     String nameEndpointofPublications = ldClient.getEndpoint(URL_TO_FIND_AK1).getName();
@@ -133,7 +133,7 @@ public class AcademicsKnowledgeProviderServiceImpl implements AcademicsKnowledge
                             && !sparqlService.ask(QueryLanguage.SPARQL, queriesService.getAskResourceQuery(providerGraph, URL_TO_FIND_AK2))) {
 
                         try {
-                            response = ldClient.retrieveResource(URL_TO_FIND_AK1);
+                            response = ldClient.retrieveResource(URL_TO_FIND_AK1.replace("keysubscriptions",keysubscriptions));
                             if (!response.getData().isEmpty()) {
                                 //load retrieve triples in Sesame repository to make some searchs.
                                 conUri = ModelCommons.asRepository(response.getData()).getConnection();
@@ -150,7 +150,7 @@ public class AcademicsKnowledgeProviderServiceImpl implements AcademicsKnowledge
                             authorSeachQuery = URL_TO_FIND_AK1;
                             //Wait four seconds to do send other query
                             try {
-                                Thread.sleep(4000);
+                                Thread.sleep(1500);
                             } catch (InterruptedException ex) {
                                 Thread.currentThread().interrupt();
                             }
@@ -159,7 +159,7 @@ public class AcademicsKnowledgeProviderServiceImpl implements AcademicsKnowledge
                         // Search author by other fields, like afiliation name, country or repository url
                         if (!dataretrievee) {
                             try {
-                                response = ldClient.retrieveResource(URL_TO_FIND_AK2);
+                                response = ldClient.retrieveResource(URL_TO_FIND_AK2.replace("keysubscriptions",keysubscriptions));
                                 if (!response.getData().isEmpty()) {
                                     //load retrieve triples in Sesame repository to make some searchs.
                                     conUri = ModelCommons.asRepository(response.getData()).getConnection();
@@ -173,7 +173,7 @@ public class AcademicsKnowledgeProviderServiceImpl implements AcademicsKnowledge
                                     dataretrievee = tripletasResult.hasNext();
 
                                     /// If an author has three values in his name is more problably that the author is correct.
-                                    if (!dataretrievee && nameToFind.split("%20").length > 1) {
+                                    if (!dataretrievee && nameToFind.split("%20").length > 2) {
                                         dataretrievee = true;
                                     }
                                 }
@@ -186,7 +186,7 @@ public class AcademicsKnowledgeProviderServiceImpl implements AcademicsKnowledge
                             } finally {
                                 authorSeachQuery = URL_TO_FIND_AK2;
                                 try {
-                                    Thread.sleep(4000);
+                                    Thread.sleep(1500);
                                 } catch (InterruptedException ex) {
                                     Thread.currentThread().interrupt();
                                 }
