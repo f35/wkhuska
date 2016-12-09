@@ -22,6 +22,7 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Stack;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 
@@ -101,6 +102,12 @@ public class AcademicsKnowledgeProviderServiceImpl implements AcademicsKnowledge
 
             RepositoryConnection conUri = null;
             ClientResponse response = null;
+            String keysubscriptions = readPropertyFromFile("seachProperties.properties", "apiKey");
+            Stack<String> keywords = new Stack<String>();
+            for (String key : keysubscriptions.split(",")) {
+                keywords.add(key);
+            }
+            String nameOfSource = readPropertyFromFile("seachProperties.properties", "source");
 
             for (Map<String, Value> map : resultAllAuthors) {
 
@@ -114,8 +121,7 @@ public class AcademicsKnowledgeProviderServiceImpl implements AcademicsKnowledge
                 boolean AuthorDataisLoad = false;
                 boolean ask = false;
                 int proceced = 0;
-                String keysubscriptions = readPropertyFromFile("seachProperties.properties", "apiKey");
-                String nameOfSource = readPropertyFromFile("seachProperties.properties", "source");
+
                 String authorSeachQuery = null;
 
                 try {
@@ -129,12 +135,12 @@ public class AcademicsKnowledgeProviderServiceImpl implements AcademicsKnowledge
                     String providerGraph = constantService.getProviderNsGraph() + "/" + nameEndpointofPublications.replace(" ", "");
 
                     //Ask if already search query is in triple Store .
+                    // && !sparqlService.ask(QueryLanguage.SPARQL, queriesService.getAskResourceQuery(providerGraph, URL_TO_FIND_AK2))
                     if (!sparqlService.ask(QueryLanguage.SPARQL, queriesService.getAskResourceQuery(providerGraph, URL_TO_FIND_AK1))
-                            && !sparqlService.ask(QueryLanguage.SPARQL, queriesService.getAskResourceQuery(providerGraph, URL_TO_FIND_AK2))
                             && !sparqlService.ask(QueryLanguage.SPARQL, queriesService.getAskResourceQuery(providerGraph, authorResource))) {
 
                         try {
-                            response = ldClient.retrieveResource(URL_TO_FIND_AK1.replace("keysubscriptions", keysubscriptions));
+                            response = ldClient.retrieveResource(URL_TO_FIND_AK1.replace("keysubscriptions", keywords.peek()));
                             if (!response.getData().isEmpty()) {
                                 //load retrieve triples in Sesame repository to make some searchs.
                                 conUri = ModelCommons.asRepository(response.getData()).getConnection();
@@ -143,6 +149,11 @@ public class AcademicsKnowledgeProviderServiceImpl implements AcademicsKnowledge
                             }
                         } catch (DataRetrievalException e) {
 
+                            if (response != null && response.getHttpStatus() == 403) {
+                                if (!keywords.isEmpty()) {
+                                    keywords.pop();
+                                }
+                            }
                             log.error("Data Retrieval emply to find: " + URL_TO_FIND_AK1 + " " + e.getMessage());
                             dataretrievee = false;
 
@@ -158,42 +169,47 @@ public class AcademicsKnowledgeProviderServiceImpl implements AcademicsKnowledge
 
                         }
                         // Search author by other fields, like afiliation name, country or repository url
-                        if (!dataretrievee) {
-                            try {
-                                response = ldClient.retrieveResource(URL_TO_FIND_AK2.replace("keysubscriptions", keysubscriptions));
-                                if (!response.getData().isEmpty()) {
-                                    //load retrieve triples in Sesame repository to make some searchs.
-                                    conUri = ModelCommons.asRepository(response.getData()).getConnection();
-                                    conUri.begin();
+//                        if (!dataretrievee) {
+//                            try {
+//                                response = ldClient.retrieveResource(URL_TO_FIND_AK2.replace("keysubscriptions", keysubscriptions));
+//                                if (!response.getData().isEmpty()) {
+//                                    //load retrieve triples in Sesame repository to make some searchs.
+//                                    conUri = ModelCommons.asRepository(response.getData()).getConnection();
+//                                    conUri.begin();
+//
+//                                    //Search some string in data retrieved to find correct authors.
+//                                    String paramSearch = readPropertyFromFile("seachProperties.properties", "paramSearch");
+//                                    String getPublicationsFromProviderQuery = queriesService.getTriplesByFilter(paramSearch.split(",")[0], paramSearch.split(",")[1], paramSearch.split(",")[2], paramSearch.split(",")[3]);
+//                                    TupleQuery pubquery = conUri.prepareTupleQuery(QueryLanguage.SPARQL, getPublicationsFromProviderQuery); //
+//                                    TupleQueryResult tripletasResult = pubquery.evaluate();
+//                                    dataretrievee = tripletasResult.hasNext();
+//
+//                                    /// If an author has three values in his name is more problably that the author is correct.
+//                                    if (!dataretrievee && nameToFind.split("%20").length > 2) {
+//                                        dataretrievee = true;
+//                                    }
+//                                }
+//                            } catch (DataRetrievalException e) {
+//
+//                                log.error("Data Retrieval emply to find: " + URL_TO_FIND_AK2 + " " + e.getMessage());
+//
+//                                dataretrievee = false;
+//
+//                            } finally {
+//                                authorSeachQuery = URL_TO_FIND_AK2;
+//                                try {
+//                                    Thread.sleep(1500);
+//                                } catch (InterruptedException ex) {
+//                                    Thread.currentThread().interrupt();
+//                                }
+//                            }
+//
+//                        }
 
-                                    //Search some string in data retrieved to find correct authors.
-                                    String paramSearch = readPropertyFromFile("seachProperties.properties", "paramSearch");
-                                    String getPublicationsFromProviderQuery = queriesService.getTriplesByFilter(paramSearch.split(",")[0], paramSearch.split(",")[1], paramSearch.split(",")[2], paramSearch.split(",")[3]);
-                                    TupleQuery pubquery = conUri.prepareTupleQuery(QueryLanguage.SPARQL, getPublicationsFromProviderQuery); //
-                                    TupleQueryResult tripletasResult = pubquery.evaluate();
-                                    dataretrievee = tripletasResult.hasNext();
+                        // Save query search
+                        String sameAsInsertQuery = buildInsertQuery(providerGraph, authorResource, OWL.SAME_AS, authorSeachQuery);
+                        updatePub(sameAsInsertQuery);
 
-                                    /// If an author has three values in his name is more problably that the author is correct.
-                                    if (!dataretrievee && nameToFind.split("%20").length > 2) {
-                                        dataretrievee = true;
-                                    }
-                                }
-                            } catch (DataRetrievalException e) {
-
-                                log.error("Data Retrieval emply to find: " + URL_TO_FIND_AK2 + " " + e.getMessage());
-
-                                dataretrievee = false;
-
-                            } finally {
-                                authorSeachQuery = URL_TO_FIND_AK2;
-                                try {
-                                    Thread.sleep(1500);
-                                } catch (InterruptedException ex) {
-                                    Thread.currentThread().interrupt();
-                                }
-                            }
-
-                        }
                         // Save triples if data retrieval is not null.
                         if (dataretrievee) {
 
@@ -202,10 +218,7 @@ public class AcademicsKnowledgeProviderServiceImpl implements AcademicsKnowledge
 //                            String InsertQueryOneOf = buildInsertQuery(providerGraph, authorSeachQuery, OWL.ONE_OF, authorResource);
 //                            updatePub(InsertQueryOneOf);
 //                            if (existNativeAuthor) {
-                            String sameAsInsertQuery = buildInsertQuery(providerGraph, authorResource, OWL.SAME_AS, authorSeachQuery);
-                            updatePub(sameAsInsertQuery);
 //                            }
-
                             if (!existNativeAuthor) {
                                 //SPARQL obtain all publications of author
                                 String getPublicationsFromProviderQuery = queriesService.getResourceUriByType("dc:creator");
@@ -269,7 +282,7 @@ public class AcademicsKnowledgeProviderServiceImpl implements AcademicsKnowledge
      */
     public String priorityFindQueryBuilding(String firstName, String lastName) {
 
-        return (firstName + " " + lastName).replace(" ", "%20").toLowerCase();
+        return ((firstName.contains(" ") ? firstName.substring(0, firstName.indexOf(" ")) : firstName) + " " + (lastName.contains(" ") ? lastName.substring(0, lastName.indexOf(" ")) : lastName)).replace(" ", "%20").toLowerCase();
     }
 
     /*
